@@ -1,0 +1,785 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Daily Ledger</title>
+<meta name="description" content="A day-by-day task tracker with recurring habits, streaks and a consistency heatmap.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231F6B4F'/%3E%3Cpath d='M8 16.6 13.6 22 24 10.6' fill='none' stroke='white' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --paper:      #FAFAF7;
+    --surface:    #FFFFFF;
+    --surface-2:  #F2F3EF;
+    --line:       #E0E2DB;
+    --line-soft:  #EBEDE7;
+    --ink:        #171D1A;
+    --ink-2:      #4B534E;
+    --ink-3:      #838C86;
+    --accent:     #1F6B4F;
+    --accent-ink: #FFFFFF;
+    --accent-wash:#E4EFE9;
+    --clay:       #B0562A;
+    --clay-wash:  #F6E7DD;
+    --heat-0:     #EAECE7;
+    --shadow:     0 1px 2px rgba(23,29,26,.05), 0 8px 24px -16px rgba(23,29,26,.28);
+    --radius:     10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:#101412; --surface:#171C1A; --surface-2:#1E2422; --line:#2A312E;
+      --line-soft:#232A27; --ink:#E6EAE7; --ink-2:#A8B1AC; --ink-3:#7A837E;
+      --accent:#58BE90; --accent-ink:#08110D; --accent-wash:#1B2E26;
+      --clay:#E08B5C; --clay-wash:#33221A; --heat-0:#212825;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.9);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:#101412; --surface:#171C1A; --surface-2:#1E2422; --line:#2A312E;
+    --line-soft:#232A27; --ink:#E6EAE7; --ink-2:#A8B1AC; --ink-3:#7A837E;
+    --accent:#58BE90; --accent-ink:#08110D; --accent-wash:#1B2E26;
+    --clay:#E08B5C; --clay-wash:#33221A; --heat-0:#212825;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.9);
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+    font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased;
+  }
+  img { max-width: 100%; }
+  button, input, textarea, select { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+  .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 28px 20px 72px; }
+
+  header.mast {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 20px; flex-wrap: wrap; padding-bottom: 14px; margin-bottom: 22px;
+    border-bottom: 1px solid var(--line);
+  }
+  .mast h1 {
+    font-family: "Instrument Serif", Georgia, serif; font-weight: 400;
+    font-size: clamp(30px, 4.4vw, 42px); letter-spacing: -.01em; margin: 0; line-height: 1;
+  }
+  .mast .sub { margin: 6px 0 0; color: var(--ink-3); font-size: 13px; letter-spacing: .07em; text-transform: uppercase; }
+  .mast .right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .badge {
+    display: inline-flex; align-items: baseline; gap: 7px; padding: 7px 12px;
+    border-radius: 999px; background: var(--clay-wash); color: var(--clay);
+    font-size: 12px; letter-spacing: .06em; text-transform: uppercase;
+  }
+  .badge b { font-family: "IBM Plex Mono", monospace; font-size: 15px; letter-spacing: 0; }
+  .ghost-btn {
+    background: none; border: 1px solid var(--line); color: var(--ink-2);
+    padding: 7px 12px; border-radius: 999px; cursor: pointer; font-size: 13px;
+  }
+  .ghost-btn:hover { border-color: var(--ink-3); color: var(--ink); }
+
+  .cols { display: grid; grid-template-columns: minmax(0,1fr) 320px; gap: 26px; align-items: start; }
+  @media (max-width: 880px) { .cols { grid-template-columns: minmax(0,1fr); } }
+
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+  .panel + .panel { margin-top: 18px; }
+  .panel-hd { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--line-soft); }
+  .panel-hd h2 { margin: 0; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); font-weight: 600; }
+
+  .datebar { display: flex; align-items: center; gap: 10px; padding: 14px 18px; flex-wrap: wrap; }
+  .nav-btn { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid var(--line); background: var(--surface-2); border-radius: 8px; cursor: pointer; color: var(--ink-2); }
+  .nav-btn:hover { color: var(--ink); border-color: var(--ink-3); }
+  .nav-btn[disabled] { opacity: .35; cursor: not-allowed; }
+  .datebar .day-name { font-family: "Instrument Serif", Georgia, serif; font-size: 26px; line-height: 1.1; }
+  .datebar .day-meta { color: var(--ink-3); font-size: 13px; }
+  .datebar .spacer { flex: 1 1 auto; }
+  input[type="date"] { background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font-size: 13px; }
+  .ratio { display: flex; align-items: baseline; gap: 6px; }
+  .ratio .big { font-family: "IBM Plex Mono", monospace; font-size: 22px; font-variant-numeric: tabular-nums; }
+  .ratio .small { color: var(--ink-3); font-size: 13px; }
+  .meter { height: 4px; background: var(--line-soft); }
+  .meter > i { display: block; height: 100%; background: var(--accent); transition: width .28s ease; }
+
+  .group-label { padding: 16px 18px 6px; font-size: 11px; letter-spacing: .11em; text-transform: uppercase; color: var(--ink-3); display: flex; gap: 8px; align-items: center; }
+  .group-label::after { content: ""; flex: 1; height: 1px; background: var(--line-soft); }
+  ul.rows { list-style: none; margin: 0; padding: 0; }
+  li.row { display: grid; grid-template-columns: 26px minmax(0,1fr) auto; gap: 12px; align-items: start; padding: 11px 18px; border-top: 1px solid var(--line-soft); }
+  li.row:first-child { border-top: none; }
+  li.row.done .title { color: var(--ink-3); text-decoration: line-through; text-decoration-thickness: 1px; }
+  .check { margin-top: 1px; width: 20px; height: 20px; border-radius: 6px; border: 1.5px solid var(--line); background: var(--surface-2); cursor: pointer; display: grid; place-items: center; padding: 0; transition: background .15s, border-color .15s; }
+  .check:hover { border-color: var(--accent); }
+  .check svg { width: 12px; height: 12px; opacity: 0; }
+  li.row.done .check { background: var(--accent); border-color: var(--accent); }
+  li.row.done .check svg { opacity: 1; stroke: var(--accent-ink); }
+  .title { font-size: 15px; word-break: break-word; }
+  .note { margin-top: 2px; font-size: 13px; color: var(--ink-2); background: none; border: none; padding: 0; width: 100%; resize: none; font-family: inherit; overflow: hidden; line-height: 1.45; }
+  .note::placeholder { color: var(--ink-3); opacity: .7; }
+  .row-side { display: flex; align-items: center; gap: 8px; }
+  .pri { font-family: "IBM Plex Mono", monospace; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; padding: 2px 7px; border-radius: 4px; cursor: pointer; border: 1px solid transparent; background: var(--surface-2); color: var(--ink-3); }
+  .pri[data-p="high"] { background: var(--clay-wash); color: var(--clay); }
+  .pri[data-p="focus"] { background: var(--accent-wash); color: var(--accent); }
+  .del { background: none; border: none; color: var(--ink-3); cursor: pointer; font-size: 16px; line-height: 1; padding: 2px 4px; opacity: 0; transition: opacity .12s; }
+  li.row:hover .del, .del:focus-visible { opacity: 1; }
+  .del:hover { color: var(--clay); }
+  @media (hover: none) { .del { opacity: 1; } }
+  .habit-mark { font-family: "IBM Plex Mono", monospace; font-size: 10px; letter-spacing: .09em; color: var(--ink-3); text-transform: uppercase; }
+  .empty { padding: 26px 18px; color: var(--ink-3); font-size: 14px; }
+
+  .composer { display: flex; gap: 10px; padding: 12px 18px; border-top: 1px solid var(--line-soft); flex-wrap: wrap; }
+  .composer input[type="text"] { flex: 1 1 220px; min-width: 0; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; }
+  .composer select { background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; font-size: 13px; color: var(--ink-2); }
+  .primary { background: var(--accent); color: var(--accent-ink); border: none; border-radius: 8px; padding: 9px 16px; cursor: pointer; font-weight: 500; }
+  .primary:hover { filter: brightness(1.07); }
+
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; }
+  .stat { padding: 14px 18px; border-top: 1px solid var(--line-soft); }
+  .stat:nth-child(odd) { border-right: 1px solid var(--line-soft); }
+  .stat .k { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+  .stat .v { font-family: "IBM Plex Mono", monospace; font-size: 24px; font-variant-numeric: tabular-nums; margin-top: 3px; line-height: 1.1; }
+  .stat .v small { font-size: 13px; color: var(--ink-3); }
+
+  .heat-wrap { padding: 14px 18px 18px; overflow-x: auto; }
+  .heat { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 11px); gap: 3px; }
+  .heat i { display: block; width: 11px; height: 11px; border-radius: 2.5px; background: var(--heat-0); cursor: pointer; }
+  .heat i[data-lvl="1"] { background: color-mix(in srgb, var(--accent) 26%, var(--heat-0)); }
+  .heat i[data-lvl="2"] { background: color-mix(in srgb, var(--accent) 50%, var(--heat-0)); }
+  .heat i[data-lvl="3"] { background: color-mix(in srgb, var(--accent) 74%, var(--heat-0)); }
+  .heat i[data-lvl="4"] { background: var(--accent); }
+  .heat i.today { box-shadow: 0 0 0 1.5px var(--clay); }
+  .heat i.sel { box-shadow: 0 0 0 1.5px var(--ink-2); }
+  .heat-legend { display: flex; align-items: center; gap: 6px; margin-top: 10px; font-size: 11px; color: var(--ink-3); }
+  .heat-legend i { width: 11px; height: 11px; border-radius: 2.5px; display: block; background: var(--heat-0); }
+
+  .bars { display: flex; align-items: flex-end; gap: 6px; height: 68px; padding: 16px 18px 6px; }
+  .bar { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; height: 100%; gap: 5px; }
+  .bar .fill { background: var(--accent-wash); border-radius: 3px 3px 0 0; min-height: 3px; }
+  .bar .fill.on { background: var(--accent); }
+  .bar .lbl { text-align: center; font-size: 10px; color: var(--ink-3); font-family: "IBM Plex Mono", monospace; }
+  .bars-cap { padding: 0 18px 14px; font-size: 11px; color: var(--ink-3); letter-spacing: .06em; text-transform: uppercase; }
+
+  .habit-row { display: flex; align-items: center; gap: 10px; padding: 9px 18px; border-top: 1px solid var(--line-soft); font-size: 14px; }
+  .habit-row .h-name { flex: 1; min-width: 0; word-break: break-word; }
+  .status { padding: 9px 18px; font-size: 12px; color: var(--ink-3); border-top: 1px solid var(--line-soft); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .status b { color: var(--ink-2); font-weight: 500; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-3); flex: none; }
+  .dot.ok { background: var(--accent); }
+  .dot.warn { background: var(--clay); }
+  .status .spacer { flex: 1 1 auto; }
+  .linkish { background: none; border: none; color: var(--ink-2); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; font-size: 12px; padding: 0; }
+  .linkish:hover { color: var(--accent); }
+
+  dialog {
+    border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface);
+    color: var(--ink); padding: 0; max-width: 460px; width: calc(100% - 32px); box-shadow: var(--shadow);
+  }
+  dialog::backdrop { background: rgba(10,14,12,.45); }
+  .dlg-body { padding: 18px; display: grid; gap: 13px; }
+  .dlg-body h3 { margin: 0; font-family: "Instrument Serif", Georgia, serif; font-weight: 400; font-size: 24px; }
+  .dlg-body p { margin: 0; font-size: 13px; color: var(--ink-2); }
+  .field { display: grid; gap: 5px; }
+  .field label { font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-3); }
+  .field input { background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; font-size: 13px; width: 100%; }
+  .dlg-actions { display: flex; gap: 8px; justify-content: flex-end; padding: 0 18px 18px; flex-wrap: wrap; }
+  [hidden] { display: none !important; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="mast">
+    <div>
+      <h1>Daily Ledger</h1>
+      <p class="sub">A day at a time</p>
+    </div>
+    <div class="right">
+      <span class="badge" title="Consecutive days finished clean"><b id="streakNum">0</b> day streak</span>
+      <button class="ghost-btn" id="themeBtn" type="button">Dark</button>
+    </div>
+  </header>
+
+  <div class="cols">
+    <main>
+      <section class="panel">
+        <div class="datebar">
+          <button class="nav-btn" id="prevDay" type="button" aria-label="Previous day">&#8592;</button>
+          <button class="nav-btn" id="nextDay" type="button" aria-label="Next day">&#8594;</button>
+          <div>
+            <div class="day-name" id="dayName">Today</div>
+            <div class="day-meta mono" id="dayDate">&mdash;</div>
+          </div>
+          <span class="spacer"></span>
+          <div class="ratio">
+            <span class="big" id="dayRatio">0/0</span>
+            <span class="small" id="dayPct">&mdash;</span>
+          </div>
+          <input type="date" id="datePick" aria-label="Jump to date">
+          <button class="ghost-btn" id="todayBtn" type="button">Today</button>
+        </div>
+        <div class="meter"><i id="dayMeter" style="width:0%"></i></div>
+
+        <div id="habitSection">
+          <div class="group-label">Daily habits</div>
+          <ul class="rows" id="habitRows"></ul>
+        </div>
+
+        <div class="group-label">Tasks for the day</div>
+        <ul class="rows" id="taskRows"></ul>
+        <div class="empty" id="taskEmpty" hidden>Nothing logged yet. Add the first thing you mean to do.</div>
+
+        <form class="composer" id="addForm">
+          <input type="text" id="addTitle" placeholder="Add a task&hellip;" autocomplete="off" maxlength="180">
+          <select id="addPri" aria-label="Priority">
+            <option value="normal">Normal</option>
+            <option value="focus">Focus</option>
+            <option value="high">High</option>
+          </select>
+          <button class="primary" type="submit">Add</button>
+        </form>
+
+        <div class="status">
+          <span class="dot" id="syncDot"></span>
+          <span id="syncText">Starting&hellip;</span>
+          <span class="spacer"></span>
+          <button class="linkish" id="syncBtn" type="button">Sync settings</button>
+          <button class="linkish" id="exportBtn" type="button">Export</button>
+          <button class="linkish" id="importBtn" type="button">Import</button>
+        </div>
+      </section>
+    </main>
+
+    <aside>
+      <section class="panel">
+        <div class="panel-hd"><h2>Record</h2><span class="mono" style="font-size:12px;color:var(--ink-3)" id="recordRange">&mdash;</span></div>
+        <div class="stat-grid">
+          <div class="stat"><div class="k">Current streak</div><div class="v" id="sStreak">0 <small>days</small></div></div>
+          <div class="stat"><div class="k">Best streak</div><div class="v" id="sBest">0 <small>days</small></div></div>
+          <div class="stat"><div class="k">Last 7 days</div><div class="v" id="s7">&mdash;</div></div>
+          <div class="stat"><div class="k">Days logged</div><div class="v" id="sLogged">0</div></div>
+        </div>
+        <div class="bars" id="bars"></div>
+        <div class="bars-cap">Completion, last 7 days</div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-hd"><h2>Consistency</h2></div>
+        <div class="heat-wrap">
+          <div class="heat" id="heat"></div>
+          <div class="heat-legend">
+            <span>Less</span>
+            <i data-lvl="0"></i><i data-lvl="1"></i><i data-lvl="2"></i><i data-lvl="3"></i><i data-lvl="4"></i>
+            <span>More</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-hd"><h2>Daily habits</h2><span class="mono" style="font-size:12px;color:var(--ink-3)" id="habitCount">0</span></div>
+        <div id="habitList"></div>
+        <form class="composer" id="habitForm">
+          <input type="text" id="habitTitle" placeholder="e.g. Read 30 minutes" autocomplete="off" maxlength="120">
+          <button class="primary" type="submit">Add habit</button>
+        </form>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<dialog id="syncDlg">
+  <form method="dialog" class="dlg-body" id="syncForm">
+    <h3>Sync settings</h3>
+    <p>Point the ledger at your own Supabase project so every device shows the same data. Leave these blank to keep everything in this browser only.</p>
+    <div class="field">
+      <label for="fUrl">Supabase project URL</label>
+      <input type="url" id="fUrl" placeholder="https://xxxxxxxx.supabase.co" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="field">
+      <label for="fKey">Anon public key</label>
+      <input type="text" id="fKey" placeholder="eyJhbGciOi&hellip;" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="field">
+      <label for="fSpace">Ledger name</label>
+      <input type="text" id="fSpace" placeholder="laukik" autocomplete="off" spellcheck="false">
+    </div>
+    <p>Use the same three values on every device. The anon key is safe to keep in the page &mdash; the ledger name is what keeps your rows separate, so pick something only you would type.</p>
+  </form>
+  <div class="dlg-actions">
+    <button class="ghost-btn" type="button" id="syncCancel">Cancel</button>
+    <button class="primary" type="button" id="syncSave">Save &amp; sync</button>
+  </div>
+</dialog>
+
+<input type="file" id="importFile" accept="application/json,.json" hidden>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ============ build-time defaults (filled in at deploy) ============ */
+  var DEFAULTS = {
+    url:   "__SUPABASE_URL__",
+    key:   "__SUPABASE_ANON_KEY__",
+    space: "__LEDGER_SPACE__"
+  };
+  function placeholder(v) { return !v || /^__[A-Z_]+__$/.test(v); }
+
+  /* ============ dates ============ */
+  var WEEKDAY = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  var MONTH = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  function key(d) { return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0"); }
+  function parseKey(k) { var p = k.split("-"); return new Date(+p[0], +p[1]-1, +p[2]); }
+  function todayKey() { return key(new Date()); }
+  function shiftKey(k, n) { var d = parseKey(k); d.setDate(d.getDate()+n); return key(d); }
+  function uid() { return Math.random().toString(36).slice(2,10) + Date.now().toString(36).slice(-4); }
+
+  /* ============ state ============ */
+  var state = {
+    days: Object.create(null),  // k -> { date, tasks:[], u: ms }
+    habits: [],
+    habitsU: 0,
+    selected: todayKey()
+  };
+  var cfg = { url: "", key: "", space: "" };
+
+  var LS = { doc: "dailyLedger.doc.v2", cfg: "dailyLedger.cfg.v1", theme: "dailyLedger.theme" };
+
+  function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+
+  function snapshot() { return { v: 2, days: state.days, habits: state.habits, habitsU: state.habitsU }; }
+  function adopt(doc) {
+    if (!doc || typeof doc !== "object") return;
+    if (doc.days && typeof doc.days === "object") state.days = doc.days;
+    if (Array.isArray(doc.habits)) state.habits = doc.habits;
+    state.habitsU = +doc.habitsU || 0;
+  }
+  function saveLocal() { lsSet(LS.doc, JSON.stringify(snapshot())); }
+  function loadLocal() { try { adopt(JSON.parse(lsGet(LS.doc) || "null")); } catch (e) {} }
+  function loadCfg() {
+    var c = null;
+    try { c = JSON.parse(lsGet(LS.cfg) || "null"); } catch (e) {}
+    cfg.url   = (c && c.url)   || (placeholder(DEFAULTS.url)   ? "" : DEFAULTS.url);
+    cfg.key   = (c && c.key)   || (placeholder(DEFAULTS.key)   ? "" : DEFAULTS.key);
+    cfg.space = (c && c.space) || (placeholder(DEFAULTS.space) ? "" : DEFAULTS.space);
+    cfg.url = cfg.url.replace(/\/+$/, "");
+  }
+  function saveCfg() { lsSet(LS.cfg, JSON.stringify(cfg)); }
+  function syncable() { return !!(cfg.url && cfg.key && cfg.space); }
+
+  /* ============ merge (per-day last-write-wins) ============ */
+  function merge(remote) {
+    if (!remote || typeof remote !== "object") return false;
+    var changed = false;
+    var rd = remote.days || {};
+    Object.keys(rd).forEach(function (k) {
+      var mine = state.days[k], theirs = rd[k];
+      if (!theirs || !Array.isArray(theirs.tasks)) return;
+      if (!mine || (+theirs.u || 0) > (+mine.u || 0)) { state.days[k] = theirs; changed = true; }
+    });
+    if ((+remote.habitsU || 0) > state.habitsU && Array.isArray(remote.habits)) {
+      state.habits = remote.habits; state.habitsU = +remote.habitsU || 0; changed = true;
+    }
+    return changed;
+  }
+
+  /* ============ sync ============ */
+  var pushTimer = null, pulling = false, lastError = "";
+
+  function headers() {
+    return {
+      "apikey": cfg.key,
+      "Authorization": "Bearer " + cfg.key,
+      "Content-Type": "application/json"
+    };
+  }
+  function endpoint() {
+    return cfg.url + "/rest/v1/ledger?space=eq." + encodeURIComponent(cfg.space);
+  }
+
+  function setSync(kind, text) {
+    var dot = document.getElementById("syncDot");
+    dot.className = "dot" + (kind === "ok" ? " ok" : kind === "warn" ? " warn" : "");
+    document.getElementById("syncText").innerHTML = text;
+  }
+
+  function pull(quiet) {
+    if (!syncable() || pulling) return Promise.resolve();
+    pulling = true;
+    if (!quiet) setSync("", "Checking for updates&hellip;");
+    return fetch(endpoint() + "&select=data", { headers: headers(), cache: "no-store" })
+      .then(function (r) {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      })
+      .then(function (rows) {
+        var remote = rows && rows[0] ? rows[0].data : null;
+        var changed = merge(remote);
+        if (changed) { saveLocal(); render(); }
+        lastError = "";
+        setSync("ok", "Synced &mdash; <b>" + escapeHtml(cfg.space) + "</b> on Supabase");
+        if (!remote) push();
+      })
+      .catch(function (e) {
+        lastError = e.message || String(e);
+        setSync("warn", "Saved in this browser &mdash; sync failed (<b>" + escapeHtml(lastError) + "</b>)");
+      })
+      .then(function () { pulling = false; });
+  }
+
+  function push() {
+    if (!syncable()) return;
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(function () {
+      var body = [{ space: cfg.space, data: snapshot(), updated_at: new Date().toISOString() }];
+      var h = headers();
+      h["Prefer"] = "resolution=merge-duplicates,return=minimal";
+      fetch(cfg.url + "/rest/v1/ledger", { method: "POST", headers: h, body: JSON.stringify(body) })
+        .then(function (r) {
+          if (!r.ok) return r.text().then(function (t) { throw new Error("HTTP " + r.status + " " + t.slice(0,120)); });
+          lastError = "";
+          setSync("ok", "Synced &mdash; <b>" + escapeHtml(cfg.space) + "</b> on Supabase");
+        })
+        .catch(function (e) {
+          lastError = e.message || String(e);
+          setSync("warn", "Saved in this browser &mdash; sync failed (<b>" + escapeHtml(lastError) + "</b>)");
+        });
+    }, 900);
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c];
+    });
+  }
+
+  function touchDay(k) { ensureDay(k).u = Date.now(); saveLocal(); push(); }
+  function touchHabits() { state.habitsU = Date.now(); saveLocal(); push(); }
+
+  /* ============ model ============ */
+  function ensureDay(k) {
+    if (!state.days[k]) state.days[k] = { date: k, tasks: [], u: 0 };
+    return state.days[k];
+  }
+  function pendingHabits(k) {
+    var day = state.days[k], have = {};
+    if (day) day.tasks.forEach(function (t) { if (t.habitId) have[t.habitId] = true; });
+    return state.habits.filter(function (h) { return !have[h.id]; });
+  }
+  function materializeHabit(k, h) {
+    var day = ensureDay(k);
+    var t = { id: uid(), title: h.title, habitId: h.id, done: false, note: "", priority: h.priority || "normal" };
+    day.tasks.push(t);
+    return t;
+  }
+  function findOrMake(k, task) {
+    var day = ensureDay(k);
+    var t = day.tasks.filter(function (x) { return x.id === task.id; })[0];
+    if (!t) t = materializeHabit(k, { id: task.habitId, title: task.title, priority: task.priority });
+    return t;
+  }
+  function dayStats(k) {
+    var day = state.days[k];
+    if (!day || !day.tasks.length) return { total: 0, done: 0, ratio: 0, clean: false };
+    var done = day.tasks.filter(function (t) { return t.done; }).length;
+    return { total: day.tasks.length, done: done, ratio: done / day.tasks.length, clean: done === day.tasks.length };
+  }
+  function streaks() {
+    var keys = Object.keys(state.days).sort();
+    if (!keys.length) return { current: 0, best: 0, logged: 0 };
+    var best = 0, run = 0, end = new Date();
+    for (var d = parseKey(keys[0]); d <= end; d.setDate(d.getDate() + 1)) {
+      run = dayStats(key(d)).clean ? run + 1 : 0;
+      if (run > best) best = run;
+    }
+    var t = todayKey();
+    var cur = dayStats(t).clean ? 1 : 0;      // an unfinished today doesn't break the streak yet
+    var cursor = shiftKey(t, -1);
+    while (dayStats(cursor).clean) { cur++; cursor = shiftKey(cursor, -1); }
+    var logged = keys.filter(function (k) { return state.days[k].tasks.length; }).length;
+    return { current: cur, best: Math.max(best, cur), logged: logged };
+  }
+
+  /* ============ render ============ */
+  var el = {};
+  ["dayName","dayDate","dayRatio","dayPct","dayMeter","habitRows","habitSection","taskRows","taskEmpty",
+   "datePick","heat","bars","habitList","habitCount","sStreak","sBest","s7","sLogged","streakNum",
+   "recordRange","nextDay"].forEach(function (id) { el[id] = document.getElementById(id); });
+
+  var CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.6 9.2 18 20 6.4"/></svg>';
+
+  function autosize(ta) { ta.style.height = "auto"; ta.style.height = ta.scrollHeight + "px"; }
+
+  function rowNode(task, k, isHabit) {
+    var li = document.createElement("li");
+    li.className = "row" + (task.done ? " done" : "");
+
+    var btn = document.createElement("button");
+    btn.type = "button"; btn.className = "check";
+    btn.setAttribute("aria-label", (task.done ? "Mark incomplete: " : "Mark complete: ") + task.title);
+    btn.innerHTML = CHECK;
+    btn.addEventListener("click", function () {
+      var t = findOrMake(k, task); t.done = !t.done; touchDay(k); render();
+    });
+
+    var mid = document.createElement("div");
+    var title = document.createElement("div");
+    title.className = "title"; title.textContent = task.title;
+    mid.appendChild(title);
+
+    var note = document.createElement("textarea");
+    note.className = "note"; note.rows = 1; note.value = task.note || ""; note.placeholder = "note…";
+    note.addEventListener("input", function () { autosize(note); });
+    note.addEventListener("change", function () {
+      var t = findOrMake(k, task); t.note = note.value.trim(); touchDay(k); render();
+    });
+    mid.appendChild(note);
+
+    var side = document.createElement("div");
+    side.className = "row-side";
+
+    if (isHabit) {
+      var mark = document.createElement("span");
+      mark.className = "habit-mark"; mark.textContent = "habit";
+      side.appendChild(mark);
+    }
+
+    var pri = document.createElement("button");
+    pri.type = "button"; pri.className = "pri"; pri.dataset.p = task.priority || "normal";
+    pri.textContent = task.priority === "high" ? "high" : task.priority === "focus" ? "focus" : "normal";
+    pri.title = "Cycle priority";
+    pri.addEventListener("click", function () {
+      var order = ["normal","focus","high"], t = findOrMake(k, task);
+      t.priority = order[(order.indexOf(t.priority || "normal") + 1) % 3];
+      touchDay(k); render();
+    });
+    side.appendChild(pri);
+
+    if (!isHabit) {
+      var del = document.createElement("button");
+      del.type = "button"; del.className = "del"; del.innerHTML = "&times;";
+      del.setAttribute("aria-label", "Delete " + task.title);
+      del.addEventListener("click", function () {
+        var day = ensureDay(k);
+        day.tasks = day.tasks.filter(function (x) { return x.id !== task.id; });
+        touchDay(k); render();
+      });
+      side.appendChild(del);
+    }
+
+    li.appendChild(btn); li.appendChild(mid); li.appendChild(side);
+    if (note.value) requestAnimationFrame(function () { autosize(note); });
+    return li;
+  }
+
+  function render() {
+    var k = state.selected, d = parseKey(k), t = todayKey();
+
+    el.dayName.textContent = k === t ? "Today" : k === shiftKey(t,-1) ? "Yesterday" : WEEKDAY[d.getDay()];
+    el.dayDate.textContent = WEEKDAY[d.getDay()].slice(0,3) + " " + MONTH[d.getMonth()] + " " + d.getDate() + ", " + d.getFullYear();
+    el.datePick.value = k;
+    el.nextDay.disabled = k >= t;
+
+    var persisted = state.days[k] ? state.days[k].tasks : [];
+    var ghosts = pendingHabits(k).map(function (h) {
+      return { id: "ghost-" + h.id, habitId: h.id, title: h.title, done: false, note: "", priority: h.priority || "normal" };
+    });
+    var habitItems = persisted.filter(function (x) { return x.habitId; }).concat(ghosts);
+    var taskItems  = persisted.filter(function (x) { return !x.habitId; });
+
+    el.habitSection.hidden = habitItems.length === 0;
+    el.habitRows.innerHTML = "";
+    habitItems.forEach(function (x) { el.habitRows.appendChild(rowNode(x, k, true)); });
+
+    el.taskRows.innerHTML = "";
+    taskItems.forEach(function (x) { el.taskRows.appendChild(rowNode(x, k, false)); });
+    el.taskEmpty.hidden = taskItems.length > 0;
+
+    var shown = habitItems.concat(taskItems);
+    var doneN = shown.filter(function (x) { return x.done; }).length;
+    el.dayRatio.textContent = doneN + "/" + shown.length;
+    el.dayPct.textContent = shown.length ? Math.round(doneN / shown.length * 100) + "%" : "nothing planned";
+    el.dayMeter.style.width = (shown.length ? doneN / shown.length * 100 : 0) + "%";
+
+    el.habitCount.textContent = state.habits.length;
+    el.habitList.innerHTML = "";
+    if (!state.habits.length) {
+      var e = document.createElement("div");
+      e.className = "empty"; e.style.padding = "16px 18px";
+      e.textContent = "No habits yet. Anything you add here shows up on every day automatically.";
+      el.habitList.appendChild(e);
+    }
+    state.habits.forEach(function (h) {
+      var row = document.createElement("div"); row.className = "habit-row";
+      var name = document.createElement("span"); name.className = "h-name"; name.textContent = h.title;
+      var del = document.createElement("button");
+      del.type = "button"; del.className = "del"; del.style.opacity = "1"; del.innerHTML = "&times;";
+      del.setAttribute("aria-label", "Remove habit " + h.title);
+      del.addEventListener("click", function () {
+        state.habits = state.habits.filter(function (x) { return x.id !== h.id; });
+        touchHabits(); render();
+      });
+      row.appendChild(name); row.appendChild(del);
+      el.habitList.appendChild(row);
+    });
+
+    renderStats();
+  }
+
+  function renderStats() {
+    var s = streaks();
+    el.sStreak.innerHTML = s.current + ' <small>day' + (s.current === 1 ? '' : 's') + '</small>';
+    el.sBest.innerHTML = s.best + ' <small>day' + (s.best === 1 ? '' : 's') + '</small>';
+    el.sLogged.textContent = s.logged;
+    el.streakNum.textContent = s.current;
+
+    var t = todayKey(), sum = 0, counted = 0;
+    el.bars.innerHTML = "";
+    for (var i = 6; i >= 0; i--) {
+      var k = shiftKey(t, -i), st = dayStats(k);
+      if (st.total) { sum += st.ratio; counted++; }
+      var bar = document.createElement("div"); bar.className = "bar";
+      var fill = document.createElement("div");
+      fill.className = "fill" + (st.clean ? " on" : "");
+      fill.style.height = Math.max(3, Math.round((st.total ? st.ratio : 0) * 46)) + "px";
+      var lbl = document.createElement("div");
+      lbl.className = "lbl"; lbl.textContent = WEEKDAY[parseKey(k).getDay()][0];
+      bar.title = k + " — " + (st.total ? st.done + "/" + st.total : "no tasks");
+      bar.appendChild(fill); bar.appendChild(lbl);
+      el.bars.appendChild(bar);
+    }
+    el.s7.textContent = counted ? Math.round(sum / counted * 100) + "%" : "—";
+
+    var end = parseKey(t); end.setDate(end.getDate() + (6 - end.getDay()));
+    var cells = 18 * 7, start = new Date(end); start.setDate(start.getDate() - cells + 1);
+    el.heat.innerHTML = "";
+    var frag = document.createDocumentFragment();
+    for (var n = 0; n < cells; n++) {
+      var dd = new Date(start); dd.setDate(dd.getDate() + n);
+      var kk = key(dd), st2 = dayStats(kk);
+      var cell = document.createElement("i");
+      var lvl = 0;
+      if (st2.total) lvl = st2.ratio >= 1 ? 4 : st2.ratio >= .66 ? 3 : st2.ratio >= .34 ? 2 : 1;
+      cell.dataset.lvl = String(lvl);
+      cell.title = kk + " — " + (st2.total ? st2.done + "/" + st2.total + " done" : "nothing logged");
+      var cls = [];
+      if (kk === t) cls.push("today");
+      if (kk === state.selected) cls.push("sel");
+      cell.className = cls.join(" ");
+      (function (kk2) {
+        cell.addEventListener("click", function () {
+          if (kk2 > todayKey()) return;
+          state.selected = kk2; render();
+        });
+      })(kk);
+      frag.appendChild(cell);
+    }
+    el.heat.appendChild(frag);
+    el.recordRange.textContent = MONTH[start.getMonth()] + " " + start.getDate() + " – " + MONTH[end.getMonth()] + " " + end.getDate();
+  }
+
+  /* ============ events ============ */
+  document.getElementById("prevDay").addEventListener("click", function () { state.selected = shiftKey(state.selected,-1); render(); });
+  el.nextDay.addEventListener("click", function () { if (state.selected < todayKey()) { state.selected = shiftKey(state.selected,1); render(); } });
+  document.getElementById("todayBtn").addEventListener("click", function () { state.selected = todayKey(); render(); });
+  el.datePick.addEventListener("change", function () { if (el.datePick.value) { state.selected = el.datePick.value; render(); } });
+
+  document.getElementById("addForm").addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    var input = document.getElementById("addTitle"), title = input.value.trim();
+    if (!title) return;
+    var k = state.selected;
+    pendingHabits(k).forEach(function (h) { materializeHabit(k, h); });
+    ensureDay(k).tasks.push({ id: uid(), title: title, done: false, note: "", priority: document.getElementById("addPri").value });
+    input.value = "";
+    touchDay(k); render(); input.focus();
+  });
+
+  document.getElementById("habitForm").addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    var input = document.getElementById("habitTitle"), title = input.value.trim();
+    if (!title) return;
+    state.habits.push({ id: uid(), title: title, priority: "normal" });
+    input.value = "";
+    touchHabits(); render();
+  });
+
+  /* theme */
+  var themeBtn = document.getElementById("themeBtn");
+  function applyTheme(mode) {
+    if (mode === "system") document.documentElement.removeAttribute("data-theme");
+    else document.documentElement.setAttribute("data-theme", mode);
+    var isDark = mode === "dark" || (mode === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    themeBtn.textContent = isDark ? "Light" : "Dark";
+  }
+  themeBtn.addEventListener("click", function () {
+    var cur = document.documentElement.getAttribute("data-theme");
+    var isDark = cur ? cur === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+    var next = isDark ? "light" : "dark";
+    applyTheme(next); lsSet(LS.theme, next);
+  });
+  applyTheme(lsGet(LS.theme) || "system");
+
+  /* sync settings dialog */
+  var dlg = document.getElementById("syncDlg");
+  document.getElementById("syncBtn").addEventListener("click", function () {
+    document.getElementById("fUrl").value = cfg.url;
+    document.getElementById("fKey").value = cfg.key;
+    document.getElementById("fSpace").value = cfg.space;
+    if (typeof dlg.showModal === "function") dlg.showModal(); else dlg.setAttribute("open", "");
+  });
+  document.getElementById("syncCancel").addEventListener("click", function () { dlg.close(); });
+  document.getElementById("syncSave").addEventListener("click", function () {
+    cfg.url = document.getElementById("fUrl").value.trim().replace(/\/+$/, "");
+    cfg.key = document.getElementById("fKey").value.trim();
+    cfg.space = document.getElementById("fSpace").value.trim();
+    saveCfg(); dlg.close();
+    if (syncable()) pull(); else setSync("", "Saved in <b>this browser only</b> — no sync configured.");
+  });
+
+  /* export / import */
+  document.getElementById("exportBtn").addEventListener("click", function () {
+    var blob = new Blob([JSON.stringify(snapshot(), null, 2)], { type: "application/json" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "daily-ledger-" + todayKey() + ".json";
+    document.body.appendChild(a); a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  });
+  var importFile = document.getElementById("importFile");
+  document.getElementById("importBtn").addEventListener("click", function () { importFile.click(); });
+  importFile.addEventListener("change", function () {
+    var f = importFile.files && importFile.files[0];
+    if (!f) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      try {
+        var doc = JSON.parse(String(reader.result));
+        merge(doc);
+        saveLocal(); push(); render();
+        setSync("ok", "Imported <b>" + Object.keys(doc.days || {}).length + " days</b> from file.");
+      } catch (e) {
+        setSync("warn", "That file could not be read as a ledger export.");
+      }
+      importFile.value = "";
+    };
+    reader.readAsText(f);
+  });
+
+  /* ============ boot ============ */
+  loadCfg();
+  loadLocal();
+  render();
+
+  if (syncable()) {
+    pull();
+    setInterval(function () { if (!document.hidden) pull(true); }, 45000);
+    document.addEventListener("visibilitychange", function () { if (!document.hidden) pull(true); });
+    window.addEventListener("online", function () { pull(true); });
+  } else {
+    setSync("", 'Saved in <b>this browser only</b> — add a Supabase project in <b>Sync settings</b> to see it everywhere.');
+  }
+})();
+</script>
+</body>
+</html>
