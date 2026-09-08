@@ -14,23 +14,20 @@ priority and notes, streaks, a 7-day completion chart and an 18-week consistency
 
 No build step, no bundler — pushing a new index.html is the deploy.
 
-## Turning on cross-device sync
+## Cross-device sync
 
-1. Create a free project at supabase.com.
-2. Open the project's **SQL Editor**, paste supabase-setup.sql, press Run.
-3. In **Project Settings → API**, copy the **Project URL** and the **anon public** key.
-4. On the live site, click **Sync settings** at the bottom of the task panel and paste both,
-   plus a **ledger name** of your choosing.
-5. Enter the same three values on every device you use.
+Already wired up. The Supabase project URL and publishable key are baked into
+`index.html`, so on a new device you only do this once:
 
-The anon key is designed to sit in public client code. The ledger name is what separates
-your rows, so treat it like a password — anyone who knows it (and the project URL) can read
-and write that ledger. This is the trade-off of a site with no login.
+1. Open the site and click **Sync settings** at the bottom of the task panel.
+2. Type your **ledger name** into the third field. Leave the other two alone.
+3. Save. The ledger loads from Supabase and keeps syncing from then on.
 
-To bake the values into the page so new devices need no setup, replace the three
-__SUPABASE_URL__ / __SUPABASE_ANON_KEY__ / __LEDGER_SPACE__ placeholders near the top
-of the script block in index.html and redeploy. Anyone who visits the site then shares
-that ledger, so only do this if the URL stays private to you.
+The ledger name is the only thing separating your rows, so treat it like a
+password — anyone who knows it can read and write that ledger. The publishable
+key is safe in public code; row-level security is on and there is no delete policy.
+
+Schema lives in `supabase-setup.sql` (table `public.ledger`).
 
 ## Without any of that
 
